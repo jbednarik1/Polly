@@ -1,14 +1,12 @@
-﻿#if SUPPORTS_ASYNC
-
-using System;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Polly.Retry
 {
-    internal partial class RetryPolicyStateWithCount<TResult> : IRetryPolicyState<TResult>
+    partial class RetryPolicyStateWithCount<TResult> : IRetryPolicyState<TResult>
     {
-        private readonly Func<DelegateResult<TResult>, int, Context, Task> _onRetryAsync;
+        readonly Func<DelegateResult<TResult>, int, Context, Task> _onRetryAsync;
 
         public RetryPolicyStateWithCount(int retryCount, Func<DelegateResult<TResult>, int, Context, Task> onRetryAsync, Context context)
         {
@@ -17,7 +15,8 @@ namespace Polly.Retry
             _context = context;
         }
 
-        public RetryPolicyStateWithCount(int retryCount, Func<DelegateResult<TResult>, int, Task> onRetryAsync) :
+        public RetryPolicyStateWithCount(int retryCount, Func<DelegateResult<TResult>, int, Task> onRetryAsync)
+            :
             this(retryCount, (delegateResult, i, context) => onRetryAsync(delegateResult, i), Context.Empty)
         {
         }
@@ -28,13 +27,9 @@ namespace Polly.Retry
 
             var shouldRetry = _errorCount <= _retryCount;
             if (shouldRetry)
-            {
-               await _onRetryAsync(delegateResult, _errorCount, _context).ConfigureAwait(continueOnCapturedContext);
-            }
+                await _onRetryAsync(delegateResult, _errorCount, _context).ConfigureAwait(continueOnCapturedContext);
 
             return shouldRetry;
         }
     }
 }
-
-#endif

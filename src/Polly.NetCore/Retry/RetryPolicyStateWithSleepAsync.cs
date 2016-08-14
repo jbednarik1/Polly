@@ -1,6 +1,4 @@
-﻿#if SUPPORTS_ASYNC
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,31 +6,36 @@ using Polly.Utilities;
 
 namespace Polly.Retry
 {
-    internal partial class RetryPolicyStateWithSleep<TResult> : IRetryPolicyState<TResult>
+    partial class RetryPolicyStateWithSleep<TResult> : IRetryPolicyState<TResult>
     {
-        private readonly Func<DelegateResult<TResult>, TimeSpan, int, Context, Task> _onRetryAsync;
+        readonly Func<DelegateResult<TResult>, TimeSpan, int, Context, Task> _onRetryAsync;
 
 
-        public RetryPolicyStateWithSleep(IEnumerable<TimeSpan> sleepDurations, Func<DelegateResult<TResult>, TimeSpan, int, Context, Task> onRetryAsync, Context context)
+        public RetryPolicyStateWithSleep(IEnumerable<TimeSpan> sleepDurations, Func<DelegateResult<TResult>, TimeSpan, int, Context, Task> onRetryAsync,
+                                         Context context)
         {
             _onRetryAsync = onRetryAsync;
             _context = context;
             _sleepDurationsEnumerator = sleepDurations.GetEnumerator();
         }
 
-        public RetryPolicyStateWithSleep(IEnumerable<TimeSpan> sleepDurations, Func<DelegateResult<TResult>, TimeSpan, Context, Task> onRetryAsync, Context context) :
+        public RetryPolicyStateWithSleep(IEnumerable<TimeSpan> sleepDurations, Func<DelegateResult<TResult>, TimeSpan, Context, Task> onRetryAsync,
+                                         Context context)
+            :
             this(sleepDurations, (delegateResult, span, i, c) => onRetryAsync(delegateResult, span, c), context)
         {
         }
 
-        public RetryPolicyStateWithSleep(IEnumerable<TimeSpan> sleepDurations, Func<DelegateResult<TResult>, TimeSpan, Task> onRetryAsync) :
+        public RetryPolicyStateWithSleep(IEnumerable<TimeSpan> sleepDurations, Func<DelegateResult<TResult>, TimeSpan, Task> onRetryAsync)
+            :
             this(sleepDurations, (delegateResult, span, context) => onRetryAsync(delegateResult, span), Context.Empty)
         {
         }
 
         public async Task<bool> CanRetryAsync(DelegateResult<TResult> delegateResult, CancellationToken cancellationToken, bool continueOnCapturedContext)
         {
-            if (!_sleepDurationsEnumerator.MoveNext()) return false;
+            if (!_sleepDurationsEnumerator.MoveNext())
+                return false;
 
             _errorCount += 1;
 
@@ -45,5 +48,3 @@ namespace Polly.Retry
         }
     }
 }
-
-#endif

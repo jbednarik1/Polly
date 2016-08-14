@@ -2,10 +2,10 @@
 
 namespace Polly.Retry
 {
-    internal partial class RetryPolicyState<TResult> : IRetryPolicyState<TResult>
+    partial class RetryPolicyState<TResult> : IRetryPolicyState<TResult>
     {
-        private readonly Action<DelegateResult<TResult>, Context> _onRetry;
-        private readonly Context _context;
+        readonly Context _context;
+        readonly Action<DelegateResult<TResult>, Context> _onRetry;
 
         public RetryPolicyState(Action<DelegateResult<TResult>, Context> onRetry, Context context)
         {
@@ -13,7 +13,8 @@ namespace Polly.Retry
             _context = context;
         }
 
-        public RetryPolicyState(Action<DelegateResult<TResult>> onRetry) :
+        public RetryPolicyState(Action<DelegateResult<TResult>> onRetry)
+            :
             this((delegateResult, context) => onRetry(delegateResult), Context.Empty)
         {
         }

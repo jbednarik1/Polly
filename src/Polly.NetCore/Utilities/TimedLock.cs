@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace Polly.Utilities
@@ -14,13 +15,13 @@ namespace Polly.Utilities
     // Thanks to John Sands for providing the necessary incentive to make
     // me invent a way of using a struct in both release and debug builds
     // without losing the debug leak tracking.
-    internal struct TimedLock : IDisposable
+    struct TimedLock : IDisposable
     {
         // The TimedLock class throws a LockTimeoutException if a lock cannot be obtained within the LockTimeout.  This allows the easier discovery and debugging of deadlocks during Polly development, than if using a pure lock.
         // We do not however ever want to throw a LockTimeoutException in production - hence the forked LockTimeout value below for DEBUG versus RELEASE builds.  
         // This applies particularly because CircuitBreakerPolicy runs state-change delegates during the lock, in order that the state change holds true (cannot be superseded by activity on other threads) while the delegate runs.  
 #if DEBUG
-        private static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(5);
+        static readonly TimeSpan LockTimeout = TimeSpan.FromSeconds(5);
 #else
         private static readonly TimeSpan LockTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
 #endif
@@ -30,13 +31,13 @@ namespace Polly.Utilities
             return Lock(o, LockTimeout);
         }
 
-        private static TimedLock Lock(object o, TimeSpan timeout)
+        static TimedLock Lock(object o, TimeSpan timeout)
         {
-            TimedLock tl = new TimedLock(o);
+            var tl = new TimedLock(o);
             if (!Monitor.TryEnter(o, timeout))
             {
 #if DEBUG
-                System.GC.SuppressFinalize(tl.leakDetector);
+                GC.SuppressFinalize(tl.leakDetector);
 #endif
                 throw new LockTimeoutException();
             }
@@ -44,14 +45,15 @@ namespace Polly.Utilities
             return tl;
         }
 
-        private TimedLock(object o)
+        TimedLock(object o)
         {
             target = o;
 #if DEBUG
             leakDetector = new Sentinel();
 #endif
         }
-        private object target;
+
+        readonly object target;
 
         public void Dispose()
         {
@@ -69,26 +71,25 @@ namespace Polly.Utilities
 #if DEBUG
         // (In Debug mode, we make it a class so that we can add a finalizer
         // in order to detect when the object is not freed.)
-        private class Sentinel
+        class Sentinel
         {
             ~Sentinel()
             {
                 // If this finalizer runs, someone somewhere failed to
                 // call Dispose, which means we've failed to leave
                 // a monitor!
-#if !PORTABLE
-                System.Diagnostics.Debug.Fail("Undisposed lock");
-#endif
+                Debug.Fail("Undisposed lock");
             }
         }
-        private Sentinel leakDetector;
-#endif
 
+        readonly Sentinel leakDetector;
+#endif
     }
 
-    internal class LockTimeoutException : Exception
+    class LockTimeoutException : Exception
     {
-        public LockTimeoutException() : base("Timeout waiting for lock")
+        public LockTimeoutException()
+            : base("Timeout waiting for lock")
         {
         }
     }

@@ -3,28 +3,29 @@ using Polly.Utilities;
 
 namespace Polly.CircuitBreaker
 {
-    internal class AdvancedCircuitController<TResult> : CircuitStateController<TResult>
+    class AdvancedCircuitController<TResult> : CircuitStateController<TResult>
     {
-        private const short NumberOfWindows = 10;
+        const short NumberOfWindows = 10;
         internal static readonly long ResolutionOfCircuitTimer = TimeSpan.FromMilliseconds(20).Ticks;
+        readonly double _failureThreshold;
 
-        private readonly IHealthMetrics _metrics;
-        private readonly double _failureThreshold;
-        private readonly int _minimumThroughput;
+        readonly IHealthMetrics _metrics;
+        readonly int _minimumThroughput;
 
         public AdvancedCircuitController(
-            double failureThreshold, 
-            TimeSpan samplingDuration, 
-            int minimumThroughput, 
-            TimeSpan durationOfBreak, 
-            Action<DelegateResult<TResult>, TimeSpan, Context> onBreak, 
-            Action<Context> onReset, 
+            double failureThreshold,
+            TimeSpan samplingDuration,
+            int minimumThroughput,
+            TimeSpan durationOfBreak,
+            Action<DelegateResult<TResult>, TimeSpan, Context> onBreak,
+            Action<Context> onReset,
             Action onHalfOpen
-            ) : base(durationOfBreak, onBreak, onReset, onHalfOpen)
+        )
+            : base(durationOfBreak, onBreak, onReset, onHalfOpen)
         {
-            _metrics = samplingDuration.Ticks < ResolutionOfCircuitTimer * NumberOfWindows
-                ? (IHealthMetrics)new SingleHealthMetrics(samplingDuration)
-                : (IHealthMetrics)new RollingHealthMetrics(samplingDuration, NumberOfWindows);
+            _metrics = samplingDuration.Ticks < ResolutionOfCircuitTimer*NumberOfWindows
+                ? new SingleHealthMetrics(samplingDuration)
+                : (IHealthMetrics) new RollingHealthMetrics(samplingDuration, NumberOfWindows);
 
             _failureThreshold = failureThreshold;
             _minimumThroughput = minimumThroughput;
@@ -48,7 +49,8 @@ namespace Polly.CircuitBreaker
         {
             using (TimedLock.Lock(_lock))
             {
-                if (_circuitState == CircuitState.HalfOpen) { OnCircuitReset(context); }
+                if (_circuitState == CircuitState.HalfOpen)
+                    OnCircuitReset(context);
 
                 _metrics.IncrementSuccess_NeedsLock();
             }
@@ -69,15 +71,10 @@ namespace Polly.CircuitBreaker
                 _metrics.IncrementFailure_NeedsLock();
                 var healthCount = _metrics.GetHealthCount_NeedsLock();
 
-                int throughput = healthCount.Total;
-                if (throughput >= _minimumThroughput && ((double)healthCount.Failures) / throughput >= _failureThreshold)
-                {
+                var throughput = healthCount.Total;
+                if ((throughput >= _minimumThroughput) && ((double) healthCount.Failures/throughput >= _failureThreshold))
                     Break_NeedsLock(context);
-                }
-
             }
         }
-
-
     }
 }

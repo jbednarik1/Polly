@@ -3,11 +3,11 @@ using Polly.Utilities;
 
 namespace Polly.CircuitBreaker
 {
-    internal class SingleHealthMetrics : IHealthMetrics
+    class SingleHealthMetrics : IHealthMetrics
     {
-        private readonly long _samplingDuration;
+        readonly long _samplingDuration;
 
-        private HealthCount _current;
+        HealthCount _current;
 
         public SingleHealthMetrics(TimeSpan samplingDuration)
         {
@@ -40,13 +40,11 @@ namespace Polly.CircuitBreaker
             return _current;
         }
 
-        private void ActualiseCurrentMetric_NeedsLock()
+        void ActualiseCurrentMetric_NeedsLock()
         {
-            long now = SystemClock.UtcNow().Ticks;
-            if (_current == null || now - _current.StartedAt >= _samplingDuration)
-            {
-                _current = new HealthCount { StartedAt = now };
-            }
+            var now = SystemClock.UtcNow().Ticks;
+            if ((_current == null) || (now - _current.StartedAt >= _samplingDuration))
+                _current = new HealthCount {StartedAt = now};
         }
     }
 }

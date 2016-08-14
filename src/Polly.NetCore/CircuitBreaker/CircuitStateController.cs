@@ -3,21 +3,21 @@ using Polly.Utilities;
 
 namespace Polly.CircuitBreaker
 {
-    internal abstract class CircuitStateController<TResult> : ICircuitController<TResult>
+    abstract class CircuitStateController<TResult> : ICircuitController<TResult>
     {
         protected readonly TimeSpan _durationOfBreak;
+        protected readonly object _lock = new object();
+        protected readonly Action<DelegateResult<TResult>, TimeSpan, Context> _onBreak;
+        protected readonly Action _onHalfOpen;
+        protected readonly Action<Context> _onReset;
         protected DateTime _blockedTill;
         protected CircuitState _circuitState;
         protected DelegateResult<TResult> _lastOutcome;
-        protected readonly Action<DelegateResult<TResult>, TimeSpan, Context> _onBreak;
-        protected readonly Action<Context> _onReset;
-        protected readonly Action _onHalfOpen;
-        protected readonly object _lock = new object();
 
         protected CircuitStateController(
-            TimeSpan durationOfBreak, 
-            Action<DelegateResult<TResult>, TimeSpan, Context> onBreak, 
-            Action<Context> onReset, 
+            TimeSpan durationOfBreak,
+            Action<DelegateResult<TResult>, TimeSpan, Context> onBreak,
+            Action<Context> onReset,
             Action onHalfOpen)
         {
             _durationOfBreak = durationOfBreak;
@@ -29,18 +29,21 @@ namespace Polly.CircuitBreaker
             Reset();
         }
 
+        protected bool IsInAutomatedBreak_NeedsLock
+        {
+            get { return SystemClock.UtcNow() < _blockedTill; }
+        }
+
         public CircuitState CircuitState
         {
             get
             {
                 if (_circuitState != CircuitState.Open)
-                {
                     return _circuitState;
-                }
 
                 using (TimedLock.Lock(_lock))
                 {
-                    if (_circuitState == CircuitState.Open && !IsInAutomatedBreak_NeedsLock)
+                    if ((_circuitState == CircuitState.Open) && !IsInAutomatedBreak_NeedsLock)
                     {
                         _circuitState = CircuitState.HalfOpen;
                         _onHalfOpen();
@@ -72,14 +75,6 @@ namespace Polly.CircuitBreaker
             }
         }
 
-        protected bool IsInAutomatedBreak_NeedsLock
-        {
-            get
-            {
-                return SystemClock.UtcNow() < _blockedTill;
-            }
-        }
-
         public void Isolate()
         {
             using (TimedLock.Lock(_lock))
@@ -90,38 +85,9 @@ namespace Polly.CircuitBreaker
             }
         }
 
-        protected void Break_NeedsLock(Context context)
-        {
-            BreakFor_NeedsLock(_durationOfBreak, context);
-        }
-
-        private void BreakFor_NeedsLock(TimeSpan durationOfBreak, Context context)
-        {
-            bool willDurationTakeUsPastDateTimeMaxValue = durationOfBreak > DateTime.MaxValue - SystemClock.UtcNow();
-            _blockedTill = willDurationTakeUsPastDateTimeMaxValue
-                ? DateTime.MaxValue
-                : SystemClock.UtcNow() + durationOfBreak;
-            _circuitState = CircuitState.Open;
-
-            _onBreak(_lastOutcome, durationOfBreak, context ?? Context.Empty);
-        }
-
         public void Reset()
         {
             OnCircuitReset(Context.Empty);
-        }
-
-        protected void ResetInternal_NeedsLock(Context context)
-        {
-            _blockedTill = DateTime.MinValue;
-            _lastOutcome = new DelegateResult<TResult>(new InvalidOperationException("This exception should never be thrown"));
-
-            CircuitState priorState = _circuitState;
-            _circuitState = CircuitState.Closed;
-            if (priorState != CircuitState.Closed)
-            {
-                _onReset(context ?? Context.Empty);
-            }
         }
 
         public void OnActionPreExecute()
@@ -147,6 +113,32 @@ namespace Polly.CircuitBreaker
         public abstract void OnActionFailure(DelegateResult<TResult> outcome, Context context);
 
         public abstract void OnCircuitReset(Context context);
+
+        protected void Break_NeedsLock(Context context)
+        {
+            BreakFor_NeedsLock(_durationOfBreak, context);
+        }
+
+        void BreakFor_NeedsLock(TimeSpan durationOfBreak, Context context)
+        {
+            var willDurationTakeUsPastDateTimeMaxValue = durationOfBreak > DateTime.MaxValue - SystemClock.UtcNow();
+            _blockedTill = willDurationTakeUsPastDateTimeMaxValue
+                ? DateTime.MaxValue
+                : SystemClock.UtcNow() + durationOfBreak;
+            _circuitState = CircuitState.Open;
+
+            _onBreak(_lastOutcome, durationOfBreak, context ?? Context.Empty);
+        }
+
+        protected void ResetInternal_NeedsLock(Context context)
+        {
+            _blockedTill = DateTime.MinValue;
+            _lastOutcome = new DelegateResult<TResult>(new InvalidOperationException("This exception should never be thrown"));
+
+            var priorState = _circuitState;
+            _circuitState = CircuitState.Closed;
+            if (priorState != CircuitState.Closed)
+                _onReset(context ?? Context.Empty);
+        }
     }
 }
-

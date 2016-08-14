@@ -5,23 +5,24 @@ using Polly.Utilities;
 namespace Polly.CircuitBreaker
 {
     /// <summary>
-    /// A circuit-breaker policy that can be applied to delegates.
+    ///     A circuit-breaker policy that can be applied to delegates.
     /// </summary>
     public partial class CircuitBreakerPolicy : ContextualPolicy
     {
-        private readonly ICircuitController<EmptyStruct> _breakerController;
+        readonly ICircuitController<EmptyStruct> _breakerController;
 
         internal CircuitBreakerPolicy(
-            Action<Action, Context> exceptionPolicy, 
+            Action<Action, Context> exceptionPolicy,
             IEnumerable<ExceptionPredicate> exceptionPredicates,
             ICircuitController<EmptyStruct> breakerController
-            ) : base(exceptionPolicy, exceptionPredicates)
+        )
+            : base(exceptionPolicy, exceptionPredicates)
         {
             _breakerController = breakerController;
         }
 
         /// <summary>
-        /// Gets the state of the underlying circuit.
+        ///     Gets the state of the underlying circuit.
         /// </summary>
         public CircuitState CircuitState
         {
@@ -29,7 +30,7 @@ namespace Polly.CircuitBreaker
         }
 
         /// <summary>
-        /// Gets the last exception handled by the circuit-breaker.
+        ///     Gets the last exception handled by the circuit-breaker.
         /// </summary>
         public Exception LastException
         {
@@ -37,7 +38,7 @@ namespace Polly.CircuitBreaker
         }
 
         /// <summary>
-        /// Isolates (opens) the circuit manually, and holds it in this state until a call to <see cref="Reset()"/> is made.
+        ///     Isolates (opens) the circuit manually, and holds it in this state until a call to <see cref="Reset()" /> is made.
         /// </summary>
         public void Isolate()
         {
@@ -45,7 +46,7 @@ namespace Polly.CircuitBreaker
         }
 
         /// <summary>
-        /// Closes the circuit, and resets any statistics controlling automated circuit-breaking.
+        ///     Closes the circuit, and resets any statistics controlling automated circuit-breaking.
         /// </summary>
         public void Reset()
         {
@@ -54,24 +55,27 @@ namespace Polly.CircuitBreaker
     }
 
     /// <summary>
-    /// A circuit-breaker policy that can be applied to delegates returning a value of type <typeparam name="TResult"/>.
+    ///     A circuit-breaker policy that can be applied to delegates returning a value of type
+    ///     <typeparam name="TResult" />
+    ///     .
     /// </summary>
     public partial class CircuitBreakerPolicy<TResult> : ContextualPolicy<TResult>
     {
-        private readonly ICircuitController<TResult> _breakerController;
+        readonly ICircuitController<TResult> _breakerController;
 
         internal CircuitBreakerPolicy(
-            Func<Func<TResult>, Context, TResult> executionPolicy, 
-            IEnumerable<ExceptionPredicate> exceptionPredicates, 
-            IEnumerable<ResultPredicate<TResult>> resultPredicates, 
+            Func<Func<TResult>, Context, TResult> executionPolicy,
+            IEnumerable<ExceptionPredicate> exceptionPredicates,
+            IEnumerable<ResultPredicate<TResult>> resultPredicates,
             ICircuitController<TResult> breakerController
-            ) : base(executionPolicy, exceptionPredicates, resultPredicates)
+        )
+            : base(executionPolicy, exceptionPredicates, resultPredicates)
         {
             _breakerController = breakerController;
         }
 
         /// <summary>
-        /// Gets the state of the underlying circuit.
+        ///     Gets the state of the underlying circuit.
         /// </summary>
         public CircuitState CircuitState
         {
@@ -79,7 +83,7 @@ namespace Polly.CircuitBreaker
         }
 
         /// <summary>
-        /// Gets the last exception handled by the circuit-breaker.
+        ///     Gets the last exception handled by the circuit-breaker.
         /// </summary>
         public Exception LastException
         {
@@ -87,7 +91,7 @@ namespace Polly.CircuitBreaker
         }
 
         /// <summary>
-        /// Gets the last result returned from a user delegate which the circuit-breaker handled.
+        ///     Gets the last result returned from a user delegate which the circuit-breaker handled.
         /// </summary>
         public TResult LastHandledResult
         {
@@ -95,7 +99,7 @@ namespace Polly.CircuitBreaker
         }
 
         /// <summary>
-        /// Isolates (opens) the circuit manually, and holds it in this state until a call to <see cref="Reset()"/> is made.
+        ///     Isolates (opens) the circuit manually, and holds it in this state until a call to <see cref="Reset()" /> is made.
         /// </summary>
         public void Isolate()
         {
@@ -103,12 +107,11 @@ namespace Polly.CircuitBreaker
         }
 
         /// <summary>
-        /// Closes the circuit, and resets any statistics controlling automated circuit-breaking.
+        ///     Closes the circuit, and resets any statistics controlling automated circuit-breaking.
         /// </summary>
         public void Reset()
         {
             _breakerController.Reset();
         }
     }
-
 }

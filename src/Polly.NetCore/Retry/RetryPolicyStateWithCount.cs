@@ -2,12 +2,12 @@
 
 namespace Polly.Retry
 {
-    internal partial class RetryPolicyStateWithCount<TResult> : IRetryPolicyState<TResult>
+    partial class RetryPolicyStateWithCount<TResult> : IRetryPolicyState<TResult>
     {
-        private int _errorCount;
-        private readonly int _retryCount;
-        private readonly Action<DelegateResult<TResult>, int, Context> _onRetry;
-        private readonly Context _context;
+        readonly Context _context;
+        readonly Action<DelegateResult<TResult>, int, Context> _onRetry;
+        readonly int _retryCount;
+        int _errorCount;
 
         public RetryPolicyStateWithCount(int retryCount, Action<DelegateResult<TResult>, int, Context> onRetry, Context context)
         {
@@ -16,7 +16,8 @@ namespace Polly.Retry
             _context = context;
         }
 
-        public RetryPolicyStateWithCount(int retryCount, Action<DelegateResult<TResult>, int> onRetry) :
+        public RetryPolicyStateWithCount(int retryCount, Action<DelegateResult<TResult>, int> onRetry)
+            :
             this(retryCount, (delegateResult, i, context) => onRetry(delegateResult, i), Context.Empty)
         {
         }
@@ -27,9 +28,7 @@ namespace Polly.Retry
 
             var shouldRetry = _errorCount <= _retryCount;
             if (shouldRetry)
-            {
                 _onRetry(delegateResult, _errorCount, _context);
-            }
 
             return shouldRetry;
         }
